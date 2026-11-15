@@ -365,6 +365,53 @@
     },
   ];
 
+  // Courses: ordered subsets of POSES, by id. A pose may appear more than once.
+  // level is the course's overall difficulty, judged by hand like a pose's.
+  const PLANS = [
+    {
+      id: "sun-salutation", name: "Sun Salutation", level: "medium",
+      desc: "The classic warm-up: one round from standing, through plank and the dogs, back to standing.",
+      poses: ["mountain", "upward-salute", "forward-fold", "half-forward-fold", "high-plank", "chaturanga",
+              "upward-dog", "downward-dog", "half-forward-fold", "forward-fold", "upward-salute", "mountain"],
+    },
+    {
+      id: "gentle-start", name: "Gentle Start", level: "easy",
+      desc: "Easy poses only: a calm first practice with a few standing poses and a lot of floor work.",
+      poses: ["mountain", "upward-salute", "tree", "chair", "warrior-2", "reverse-warrior", "cat", "cow",
+              "child", "sphinx", "bridge", "happy-baby", "corpse"],
+    },
+    {
+      id: "standing-strength", name: "Standing Strength", level: "medium",
+      desc: "Build legs and balance: warriors, side angles and one-legged balances.",
+      poses: ["mountain", "chair", "warrior-1", "high-lunge", "warrior-3", "warrior-2", "triangle",
+              "extended-side-angle", "half-moon", "goddess", "tree", "dancer", "mountain"],
+    },
+    {
+      id: "hip-opener", name: "Hip Opener", level: "easy",
+      desc: "Lunges, squats and seated poses that open the hips after a day of sitting.",
+      poses: ["mountain", "goddess", "garland", "low-lunge", "downward-dog", "pigeon", "bound-angle",
+              "easy", "happy-baby", "corpse"],
+    },
+    {
+      id: "core-and-arms", name: "Core and Arms", level: "medium",
+      desc: "Plank variations, Boat and Crow, with Downward Dog and Child's Pose to recover.",
+      poses: ["downward-dog", "high-plank", "plank", "side-plank", "chaturanga", "upward-dog",
+              "downward-dog", "boat", "crow", "child"],
+    },
+    {
+      id: "evening-wind-down", name: "Evening Wind-Down", level: "easy",
+      desc: "Slow, restful floor poses to end the day.",
+      poses: ["easy", "cat", "cow", "child", "seated-forward-fold", "bound-angle", "happy-baby",
+              "legs-up-the-wall", "corpse"],
+    },
+    {
+      id: "backbends-and-inversions", name: "Backbends and Inversions", level: "difficult",
+      desc: "An advanced course: build up to Wheel and Headstand, then cool down.",
+      poses: ["cobra", "locust", "bow-pose", "camel", "bridge", "wheel", "child", "shoulder-stand",
+              "plow", "fish", "headstand", "child", "corpse"],
+    },
+  ];
+
   // Segment lengths in metres, roughly an adult.
   const LEN = { torso: 0.5, neck: 0.1, head: 0.1, upperArm: 0.3, forearm: 0.27, thigh: 0.45, shin: 0.43 };
   const FOOT = { side: 0.15, front: 0.07 };
@@ -544,5 +591,5 @@
     return [`<span class="label top">${label}</span>`, ...lines.slice(1), `<span class="label bottom">${bar}</span>`].join("\n");
   }
 
-  globalThis.Yoga = { POSES, toAscii };
+  globalThis.Yoga = { POSES, PLANS, toAscii };
 })();

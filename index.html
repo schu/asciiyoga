@@ -7,16 +7,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" />
+  <script>try { const t = localStorage.getItem("asciiyoga-theme"); if (t === "light" || t === "dark") document.documentElement.dataset.theme = t; } catch {}</script>
   <style>
     :root {
       --bg: #f4f5f2; --card: #fff; --ink: #1d2320; --muted: #6b726e;
       --accent: #2f7a5b; --gaze: #9b3fb5; --arm: #1f63c9; --leg: #c25a0c; --line: #dfe2dc;
       --easy: #2f7a5b; --medium: #a8730a; --difficult: #b8323a;
       --mono: "JetBrains Mono", monospace;
+      color-scheme: light dark;
     }
+    /* Theme: data-theme="light" | "dark" on <html> overrides the system setting; no attribute = system. */
+    :root[data-theme="light"] { color-scheme: light; }
     @media (prefers-color-scheme: dark) {
-      :root { --bg: #131614; --card: #1b201d; --ink: #e6ebe8; --muted: #8e9893; --accent: #6cc59c; --gaze: #d08ae6; --arm: #6aa8ff; --leg: #ff9d4d; --line: #2b322e; --easy: #6cc59c; --medium: #e6b54a; --difficult: #ff7b82; }
+      :root:not([data-theme="light"]) { --bg: #131614; --card: #1b201d; --ink: #e6ebe8; --muted: #8e9893; --accent: #6cc59c; --gaze: #d08ae6; --arm: #6aa8ff; --leg: #ff9d4d; --line: #2b322e; --easy: #6cc59c; --medium: #e6b54a; --difficult: #ff7b82; }
     }
+    :root[data-theme="dark"] { color-scheme: dark; --bg: #131614; --card: #1b201d; --ink: #e6ebe8; --muted: #8e9893; --accent: #6cc59c; --gaze: #d08ae6; --arm: #6aa8ff; --leg: #ff9d4d; --line: #2b322e; --easy: #6cc59c; --medium: #e6b54a; --difficult: #ff7b82; }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--mono); }
     /* One typeface everywhere, including form-ish and code elements. */
@@ -30,12 +35,12 @@
     }
     h1 { margin: 0; font: 600 24px/1.2 var(--mono); letter-spacing: 0.02em; }
     header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-    .loop { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+    .loop, .course { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
     .controls { display: flex; align-items: center; gap: 12px; }
-    .playpause { display: grid; place-items: center; width: 32px; height: 30px; padding: 0; cursor: pointer; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
-    .playpause:hover:not(:disabled) { border-color: var(--muted); }
-    .playpause:disabled { opacity: 0.4; cursor: default; }
-    .loop select { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+    .icon-btn { display: grid; place-items: center; width: 32px; height: 30px; padding: 0; cursor: pointer; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
+    .icon-btn:hover:not(:disabled) { border-color: var(--muted); }
+    .icon-btn:disabled { opacity: 0.4; cursor: default; }
+    .loop select, .course select { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
     /* Countdown to the next pose while looping. */
     .view { position: relative; }
     .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--accent); transform-origin: left; transform: scaleX(0); }
@@ -74,6 +79,7 @@
     .picker-wrap { border-top: 1px solid var(--line); padding-top: 10px; min-width: 0; }
     .picker-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
     .picker-bar strong { color: var(--ink); }
+    .picker-bar .course-desc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .picker-bar .spacer { flex: 1; }
     .picker-bar button { font: inherit; font-size: 16px; line-height: 1; width: 32px; height: 28px; cursor: pointer; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
     .picker-bar button:disabled { opacity: 0.35; cursor: default; }
@@ -127,7 +133,11 @@
     <header>
       <h1>ASCIIYOGA</h1>
       <div class="controls">
-        <button type="button" id="playpause" class="playpause" aria-pressed="false" aria-label="Pause the loop" title="Pause (space)"></button>
+        <label class="course">Course
+          <select id="course"><option value="">All poses</option></select>
+        </label>
+        <button type="button" id="theme" class="icon-btn"></button>
+        <button type="button" id="playpause" class="icon-btn" aria-pressed="false" aria-label="Pause the loop" title="Pause (space)"></button>
         <label class="loop">Time per pose
           <select id="loop">
             <option value="0">Off</option>
@@ -165,8 +175,9 @@
 
     <section class="picker-wrap">
       <div class="picker-bar">
-        <span><strong id="count"></strong> poses</span>
+        <span><strong id="course-name"></strong> &middot; <strong id="count"></strong> poses</span>
         <span>&middot; showing <strong id="position"></strong></span>
+        <span class="course-desc" id="course-desc"></span>
         <span class="spacer"></span>
         <span>scroll sideways</span>
         <button type="button" id="scroll-prev" aria-label="Scroll poses left">&lsaquo;</button>
@@ -178,6 +189,28 @@
 
   <script src="yoga.js"></script>
   <script>
+    // Theme button cycles system -> light -> dark. The choice is remembered per browser.
+    const THEMES = {
+      system: { next: "light", icon: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7 1.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/></svg>' },
+      light: { next: "dark", icon: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="2.75" fill="currentColor"/><path d="M7 .75v1.6M7 11.65v1.6M.75 7h1.6M11.65 7h1.6M2.6 2.6l1.1 1.1M10.3 10.3l1.1 1.1M2.6 11.4l1.1-1.1M10.3 3.7l1.1-1.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>' },
+      dark: { next: "system", icon: '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M11.8 9.2A5.5 5.5 0 0 1 4.8 2.2a5.5 5.5 0 1 0 7 7z" fill="currentColor"/></svg>' },
+    };
+    const themeBtn = document.getElementById("theme");
+    function applyTheme(theme) {
+      if (theme === "system") delete document.documentElement.dataset.theme;
+      else document.documentElement.dataset.theme = theme;
+      themeBtn.innerHTML = THEMES[theme].icon;
+      const label = `Theme: ${theme}. Switch to ${THEMES[theme].next}`;
+      themeBtn.setAttribute("aria-label", label);
+      themeBtn.title = label;
+    }
+    themeBtn.addEventListener("click", () => {
+      const theme = THEMES[document.documentElement.dataset.theme || "system"].next;
+      try { if (theme === "system") localStorage.removeItem("asciiyoga-theme"); else localStorage.setItem("asciiyoga-theme", theme); } catch {}
+      applyTheme(theme);
+    });
+    applyTheme(document.documentElement.dataset.theme || "system");
+
     // Render an ASCII drawing into a <pre> and record its size for the CSS font fitting.
     function draw(pre, pose, opts) {
       pre.innerHTML = Yoga.toAscii(pose, opts);
@@ -187,39 +220,63 @@
       pre.setAttribute("aria-label", `${pose.name} figure`);
     }
 
+    const PIPS = { easy: "●○○", medium: "●●○", difficult: "●●●" };
+
     // Fill a difficulty badge: "●○○ easy", "●●○ medium", "●●● difficult".
     function setLevel(el, level) {
-      const n = { easy: 1, medium: 2, difficult: 3 }[level];
       el.className = `level ${level}`;
-      el.dataset.pips = "●".repeat(n) + "○".repeat(3 - n);
+      el.dataset.pips = PIPS[level];
       el.textContent = level;
       el.title = `Difficulty: ${level}`;
     }
 
     const view = document.getElementById("view");
     const picker = document.getElementById("picker");
+    const courseSel = document.getElementById("course");
+    const POSE_BY_ID = Object.fromEntries(Yoga.POSES.map((p) => [p.id, p]));
     const buttons = [];
-    let current = 0;
+    let course = null;           // the selected plan from Yoga.PLANS, or null for all poses
+    let sequence = Yoga.POSES;   // the poses shown in the strip and played by the loop
+    let current = 0;             // index into sequence
+
+    for (const plan of Yoga.PLANS) courseSel.add(new Option(`${PIPS[plan.level]} ${plan.name} (${plan.poses.length}, ${plan.level})`, plan.id));
 
     function select(i, { focus = false } = {}) {
-      current = (i + Yoga.POSES.length) % Yoga.POSES.length;
-      const pose = Yoga.POSES[current];
+      current = (i + sequence.length) % sequence.length;
+      const pose = sequence[current];
       draw(view, pose);
       document.getElementById("name").textContent = pose.name;
       document.getElementById("sanskrit").textContent = pose.sanskrit;
       setLevel(document.getElementById("level"), pose.level);
       document.getElementById("desc").textContent = pose.desc;
       buttons.forEach((b, j) => b.setAttribute("aria-current", j === current));
-      document.getElementById("position").textContent = `${current + 1} of ${Yoga.POSES.length}`;
+      document.getElementById("position").textContent = `${current + 1} of ${sequence.length}`;
       buttons[current].scrollIntoView({ block: "nearest", inline: "nearest" });
       if (focus) buttons[current].focus();
-      history.replaceState(null, "", `#${pose.id}`);
+      // "#tree" for all poses, "#sun-salutation/tree" inside a course.
+      history.replaceState(null, "", `#${course ? `${course.id}/` : ""}${pose.id}`);
     }
 
-    Yoga.POSES.forEach((pose, i) => {
+    // Switch course and rebuild the strip with its poses (a pose may repeat).
+    function setCourse(id) {
+      course = Yoga.PLANS.find((p) => p.id === id) || null;
+      sequence = course ? course.poses.map((pid) => POSE_BY_ID[pid]) : Yoga.POSES;
+      courseSel.value = course ? course.id : "";
+      document.getElementById("course-name").textContent = course ? course.name : "All poses";
+      document.getElementById("course-desc").textContent = course ? `· ${course.desc}` : "";
+      document.getElementById("course-desc").title = course ? course.desc : "";
+      document.getElementById("count").textContent = sequence.length;
+      buttons.length = 0;
+      picker.replaceChildren();
+      sequence.forEach(addTile);
+      strip.scrollLeft = 0;
+      updateEdges();
+    }
+
+    function addTile(pose, i) {
       const li = document.createElement("li");
       const btn = document.createElement("button");
-      btn.innerHTML = `<span class="tile-head"><span class="tile-num">${String(i + 1).padStart(2, "0")} / ${Yoga.POSES.length}</span><span class="level"></span></span><div class="thumb"><pre class="ascii" aria-hidden="true"></pre></div>
+      btn.innerHTML = `<span class="tile-head"><span class="tile-num">${String(i + 1).padStart(2, "0")} / ${sequence.length}</span><span class="level"></span></span><div class="thumb"><pre class="ascii" aria-hidden="true"></pre></div>
         <span class="tile-name"></span><span class="tile-sanskrit"></span><span class="tile-desc"></span>`;
       draw(btn.querySelector("pre"), pose, { labels: false });
       btn.querySelector(".tile-name").textContent = pose.name;
@@ -230,7 +287,7 @@
       buttons.push(btn);
       li.append(btn);
       picker.append(li);
-    });
+    }
 
     // A vertical mouse wheel scrolls the strip sideways.
     const strip = document.querySelector(".picker");
@@ -240,8 +297,7 @@
       e.preventDefault();
     }, { passive: false });
 
-    // Pose count, scroll buttons, and faded edges where tiles are hidden.
-    document.getElementById("count").textContent = Yoga.POSES.length;
+    // Scroll buttons, and faded edges where tiles are hidden.
     const prevBtn = document.getElementById("scroll-prev");
     const nextBtn = document.getElementById("scroll-next");
     prevBtn.addEventListener("click", () => strip.scrollBy({ left: -strip.clientWidth * 0.8, behavior: "smooth" }));
@@ -256,7 +312,6 @@
     }
     strip.addEventListener("scroll", updateEdges, { passive: true });
     addEventListener("resize", updateEdges);
-    updateEdges();
 
     // Arrow keys step through the poses.
     document.addEventListener("keydown", (e) => {
@@ -265,7 +320,11 @@
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") { select(current - 1, { focus: true }); restartLoop(); e.preventDefault(); }
     });
 
-    const fromHash = Yoga.POSES.findIndex((p) => p.id === location.hash.slice(1));
+    // Restore course and pose from the URL hash: "#pose" or "#course/pose".
+    const hashParts = location.hash.slice(1).split("/");
+    const hashPose = hashParts.pop();
+    setCourse(hashParts[0] || "");
+    const fromHash = sequence.findIndex((p) => p.id === hashPose);
     select(fromHash >= 0 ? fromHash : 0);
 
     // Loop through the poses. The chosen time is remembered per browser.
@@ -347,6 +406,9 @@
       togglePause();
       e.preventDefault();
     });
+
+    // A new course starts at its first pose with a fresh countdown.
+    courseSel.addEventListener("change", () => { setCourse(courseSel.value); select(0); restartLoop(); });
 
     loopSel.addEventListener("change", () => {
       try { localStorage.setItem("asciiyoga-loop", loopSel.value); } catch {}
