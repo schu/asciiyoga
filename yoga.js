@@ -180,7 +180,8 @@
   const esc = (c) => (c === "<" ? "&lt;" : c === ">" ? "&gt;" : c === "&" ? "&amp;" : c);
 
   // Returns HTML for a <pre>: the figure drawn on a character grid.
-  function toAscii(pose) {
+  // Options: labels = false drops the view label and the scale bar (for thumbnails).
+  function toAscii(pose, { labels = true } = {}) {
     const g = solve(pose);
     const front = pose.view === "front";
     const far = front ? null : "left"; // side view: left limbs are behind
@@ -264,6 +265,7 @@
     // Title and scale bar.
     const label = front ? "FRONT VIEW" : "SIDE VIEW - from right";
     const bar = "|" + "1 m".padStart(Math.floor((COLS_PER_M - 2 + 3) / 2), "-").padEnd(COLS_PER_M - 2, "-") + "|";
+    if (!labels) return lines.slice(1).join("\n");
     return [`<span class="label top">${label}</span>`, ...lines.slice(1), `<span class="label bottom">${bar}</span>`].join("\n");
   }
 

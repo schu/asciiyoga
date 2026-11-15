@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Yogaloop</title>
+  <title>asciiyoga</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" />
@@ -20,70 +20,161 @@
     body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--mono); }
     /* One typeface everywhere, including form-ish and code elements. */
     code, pre, button, input { font-family: var(--mono); }
-    main { padding: 32px clamp(16px, 3vw, 48px) 64px; }
+
+    /* Full-viewport layout: header, the selected pose, then the scrollable picker. */
+    main {
+      height: 100vh; height: 100dvh;
+      display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 16px;
+      padding: 20px clamp(16px, 3vw, 48px);
+    }
     h1 { margin: 0; font: 600 24px/1.2 var(--mono); letter-spacing: 0.02em; }
-    header p { margin: 4px 0 16px; color: var(--muted); }
-    .legend { font: 13px/1.7 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; margin: 0 0 24px; width: fit-content; display: grid; grid-template-columns: max-content auto; gap: 0 20px; }
+
+    /* --- Selected pose --- */
+    .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 24px; min-height: 0; }
+    .view {
+      container-type: size; min-height: 0;
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+      display: grid; place-items: center; padding: 16px;
+    }
+    /* The drawing scales to fill the view: limited by width (cols) and height (rows + label margins). */
+    .view pre {
+      margin: 0; line-height: 1.15;
+      font-size: min(26px, 100cqw / (var(--cols) * 0.62), 100cqh / (var(--rows) * 1.15 + 2.6));
+    }
+    .info { overflow-y: auto; min-height: 0; }
+    .info h2 { margin: 0; font-size: 22px; line-height: 1.25; }
+    .sanskrit { color: var(--accent); font-style: italic; }
+    .info p { margin: 8px 0 20px; color: var(--muted); font-size: 14px; }
+    .legend { font-size: 13px; line-height: 1.7; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; margin: 0; width: fit-content; display: grid; grid-template-columns: max-content auto; gap: 0 20px; }
     .legend dt { color: var(--ink); font-weight: 600; text-align: right; white-space: pre; }
     .legend dd { margin: 0; }
-    ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
-    li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px 16px; min-width: 0; container-type: inline-size; display: flex; flex-direction: column; }
-    /* Each drawing shrinks its font (up to 13px) so its widest line fits the card. */
-    pre { margin: 0; font: min(13px, 100cqw / (var(--cols, 40) * 0.62)) / 1.15 var(--mono); overflow-x: auto; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
-    pre .art { display: block; }
-    pre .torso, pre .head { color: var(--ink); }
-    pre .arm { color: var(--arm); }
-    pre .leg { color: var(--leg); font-weight: 700; }
-    pre .far { opacity: 0.45; }
-    pre .end { font-weight: 700; }
-    pre .gaze { color: var(--gaze); font-weight: 700; }
-    pre .floor, pre .label { color: var(--muted); }
+
+    /* --- Picker: smaller renderings in a vertically scrolling panel --- */
+    /* One horizontal strip of tiles; scrolls sideways (the mouse wheel too, see script). */
+    .picker { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x proximity; border-top: 1px solid var(--line); padding: 12px 0 8px; }
+    .picker ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 12px; }
+    .picker li { display: flex; flex: 0 0 260px; scroll-snap-align: start; }
+    /* Tiles like the original cards: drawing, name, Sanskrit name and description. */
+    .picker button {
+      width: 100%; padding: 12px 14px 14px; cursor: pointer; text-align: left; color: var(--ink);
+      background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+      display: flex; flex-direction: column;
+    }
+    .picker .tile-name { margin-top: 10px; font-size: 15px; font-weight: 600; }
+    .picker .tile-sanskrit { color: var(--accent); font-style: italic; font-size: 13px; }
+    .picker .tile-desc { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .picker button:hover { border-color: var(--muted); }
+    .picker button[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+    .thumb { container-type: size; height: 130px; width: 100%; display: grid; place-items: end center; }
+    .thumb pre { margin: 0; line-height: 1.15; font-size: min(10px, 100cqw / (var(--cols) * 0.62), 100cqh / (var(--rows) * 1.15)); }
+
+    /* --- ASCII character styles (shared by view and thumbnails) --- */
+    .ascii .torso, .ascii .head { color: var(--ink); }
+    .ascii .arm { color: var(--arm); }
+    .ascii .leg { color: var(--leg); font-weight: 700; }
+    .ascii .far { opacity: 0.45; }
+    .ascii .end { font-weight: 700; }
+    .ascii .gaze { color: var(--gaze); font-weight: 700; }
+    .ascii .floor, .ascii .label { color: var(--muted); }
     /* Inline blocks take vertical margins but keep the text lines intact. */
-    pre .label.top { display: inline-block; margin-bottom: 1.5em; }
-    pre .label.bottom { display: inline-block; margin-top: 0.6em; }
-    h2 { margin: 24px 0 0; font-size: 16px; }
-    .sanskrit { color: var(--accent); font-style: italic; font-size: 14px; }
-    li p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
-    footer { margin-top: 32px; font-size: 13px; color: var(--muted); }
+    .ascii .label.top { display: inline-block; margin-bottom: 1.5em; }
+    .ascii .label.bottom { display: inline-block; margin-top: 0.6em; }
+
+    /* Narrow screens: let the page scroll; info goes under the drawing. */
+    @media (max-width: 760px) {
+      main { height: auto; grid-template-rows: auto auto auto; }
+      .stage { grid-template-columns: 1fr; }
+      .view { height: 60vh; }
+    }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <h1>YOGALOOP</h1>
-    </header>
+    <header><h1>ASCIIYOGA</h1></header>
 
-    <dl class="legend" aria-label="Legend">
-      <dt>+</dt><dd>joint</dd>
-      <dt>&gt; ^ &lt; v</dt><dd>hand / toes point this way</dd>
-      <dt>o</dt><dd>toes point at you</dd>
-      <dt>(&gt;)</dt><dd>head, eye facing</dd>
-      <dt>(o o)</dt><dd>face toward you</dd>
-      <dt style="color:var(--gaze)">...&gt;</dt><dd>line of sight</dd>
-      <dt style="color:var(--arm)">-+-&gt;</dt><dd>arm</dd>
-      <dt style="color:var(--leg);font-weight:800">-+-&gt;</dt><dd>leg (bold)</dd>
-      <dt style="opacity:.45">-+-&gt;</dt><dd>far-side limb (faded)</dd>
-    </dl>
+    <section class="stage" aria-live="polite">
+      <div class="view"><pre class="ascii" id="view" role="img"></pre></div>
+      <div class="info">
+        <h2 id="name"></h2>
+        <div class="sanskrit" id="sanskrit"></div>
+        <p id="desc"></p>
+        <dl class="legend" aria-label="Legend">
+          <dt>+</dt><dd>joint</dd>
+          <dt>&gt; ^ &lt; v</dt><dd>hand / toes point this way</dd>
+          <dt>o</dt><dd>toes point at you</dd>
+          <dt>(&gt;)</dt><dd>head, eye facing</dd>
+          <dt>(o o)</dt><dd>face toward you</dd>
+          <dt style="color:var(--gaze)">...&gt;</dt><dd>line of sight</dd>
+          <dt style="color:var(--arm)">-+-&gt;</dt><dd>arm</dd>
+          <dt style="color:var(--leg);font-weight:800">-+-&gt;</dt><dd>leg (bold)</dd>
+          <dt style="opacity:.45">-+-&gt;</dt><dd>far-side limb (faded)</dd>
+        </dl>
+      </div>
+    </section>
 
-    <ul id="poses"></ul>
+    <nav class="picker" aria-label="Poses"><ul id="picker"></ul></nav>
   </main>
 
   <script src="yoga.js"></script>
   <script>
-    const list = document.getElementById("poses");
-    for (const pose of Yoga.POSES) {
-      const li = document.createElement("li");
-      li.innerHTML = `<pre role="img"></pre><h2></h2><div class="sanskrit"></div><p></p>`;
-      const pre = li.querySelector("pre");
-      // One wrapper so the flex layout (bottom-aligns the drawing) sees a single item.
-      pre.innerHTML = `<span class="art">${Yoga.toAscii(pose)}</span>`;
-      pre.setAttribute("aria-label", `${pose.name} stick figure`);
-      pre.style.setProperty("--cols", Math.max(...pre.textContent.split("\n").map((l) => l.length)));
-      li.querySelector("h2").textContent = pose.name;
-      li.querySelector(".sanskrit").textContent = pose.sanskrit;
-      li.querySelector("p").textContent = pose.desc;
-      list.append(li);
+    // Render an ASCII drawing into a <pre> and record its size for the CSS font fitting.
+    function draw(pre, pose, opts) {
+      pre.innerHTML = Yoga.toAscii(pose, opts);
+      const lines = pre.textContent.split("\n");
+      pre.style.setProperty("--cols", Math.max(...lines.map((l) => l.length)));
+      pre.style.setProperty("--rows", lines.length);
+      pre.setAttribute("aria-label", `${pose.name} figure`);
     }
+
+    const view = document.getElementById("view");
+    const picker = document.getElementById("picker");
+    const buttons = [];
+    let current = 0;
+
+    function select(i, { focus = false } = {}) {
+      current = (i + Yoga.POSES.length) % Yoga.POSES.length;
+      const pose = Yoga.POSES[current];
+      draw(view, pose);
+      document.getElementById("name").textContent = pose.name;
+      document.getElementById("sanskrit").textContent = pose.sanskrit;
+      document.getElementById("desc").textContent = pose.desc;
+      buttons.forEach((b, j) => b.setAttribute("aria-current", j === current));
+      buttons[current].scrollIntoView({ block: "nearest", inline: "nearest" });
+      if (focus) buttons[current].focus();
+      history.replaceState(null, "", `#${pose.id}`);
+    }
+
+    Yoga.POSES.forEach((pose, i) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.innerHTML = `<div class="thumb"><pre class="ascii" aria-hidden="true"></pre></div>
+        <span class="tile-name"></span><span class="tile-sanskrit"></span><span class="tile-desc"></span>`;
+      draw(btn.querySelector("pre"), pose, { labels: false });
+      btn.querySelector(".tile-name").textContent = pose.name;
+      btn.querySelector(".tile-sanskrit").textContent = pose.sanskrit;
+      btn.querySelector(".tile-desc").textContent = pose.desc;
+      btn.addEventListener("click", () => select(i));
+      buttons.push(btn);
+      li.append(btn);
+      picker.append(li);
+    });
+
+    // A vertical mouse wheel scrolls the strip sideways.
+    const strip = document.querySelector(".picker");
+    strip.addEventListener("wheel", (e) => {
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // trackpad sideways swipes work natively
+      strip.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
+
+    // Arrow keys step through the poses.
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") { select(current + 1, { focus: true }); e.preventDefault(); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { select(current - 1, { focus: true }); e.preventDefault(); }
+    });
+
+    const fromHash = Yoga.POSES.findIndex((p) => p.id === location.hash.slice(1));
+    select(fromHash >= 0 ? fromHash : 0);
   </script>
 </body>
 </html>
