@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Yogaloop</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" />
+  <style>
+    :root {
+      --bg: #f4f5f2; --card: #fff; --ink: #1d2320; --muted: #6b726e;
+      --accent: #2f7a5b; --gaze: #9b3fb5; --arm: #1f63c9; --leg: #c25a0c; --line: #dfe2dc;
+      --mono: "JetBrains Mono", monospace;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg: #131614; --card: #1b201d; --ink: #e6ebe8; --muted: #8e9893; --accent: #6cc59c; --gaze: #d08ae6; --arm: #6aa8ff; --leg: #ff9d4d; --line: #2b322e; }
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--mono); }
+    /* One typeface everywhere, including form-ish and code elements. */
+    code, pre, button, input { font-family: var(--mono); }
+    main { padding: 32px clamp(16px, 3vw, 48px) 64px; }
+    h1 { margin: 0; font: 600 24px/1.2 var(--mono); letter-spacing: 0.02em; }
+    header p { margin: 4px 0 16px; color: var(--muted); }
+    .legend { font: 13px/1.7 var(--mono); color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; margin: 0 0 24px; width: fit-content; display: grid; grid-template-columns: max-content auto; gap: 0 20px; }
+    .legend dt { color: var(--ink); font-weight: 600; text-align: right; white-space: pre; }
+    .legend dd { margin: 0; }
+    ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+    li { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px 16px; min-width: 0; container-type: inline-size; display: flex; flex-direction: column; }
+    /* Each drawing shrinks its font (up to 13px) so its widest line fits the card. */
+    pre { margin: 0; font: min(13px, 100cqw / (var(--cols, 40) * 0.62)) / 1.15 var(--mono); overflow-x: auto; flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+    pre .art { display: block; }
+    pre .torso, pre .head { color: var(--ink); }
+    pre .arm { color: var(--arm); }
+    pre .leg { color: var(--leg); font-weight: 700; }
+    pre .far { opacity: 0.45; }
+    pre .end { font-weight: 700; }
+    pre .gaze { color: var(--gaze); font-weight: 700; }
+    pre .floor, pre .label { color: var(--muted); }
+    /* Inline blocks take vertical margins but keep the text lines intact. */
+    pre .label.top { display: inline-block; margin-bottom: 1.5em; }
+    pre .label.bottom { display: inline-block; margin-top: 0.6em; }
+    h2 { margin: 24px 0 0; font-size: 16px; }
+    .sanskrit { color: var(--accent); font-style: italic; font-size: 14px; }
+    li p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+    footer { margin-top: 32px; font-size: 13px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>YOGALOOP</h1>
+    </header>
+
+    <dl class="legend" aria-label="Legend">
+      <dt>+</dt><dd>joint</dd>
+      <dt>&gt; ^ &lt; v</dt><dd>hand / toes point this way</dd>
+      <dt>o</dt><dd>toes point at you</dd>
+      <dt>(&gt;)</dt><dd>head, eye facing</dd>
+      <dt>(o o)</dt><dd>face toward you</dd>
+      <dt style="color:var(--gaze)">...&gt;</dt><dd>line of sight</dd>
+      <dt style="color:var(--arm)">-+-&gt;</dt><dd>arm</dd>
+      <dt style="color:var(--leg);font-weight:800">-+-&gt;</dt><dd>leg (bold)</dd>
+      <dt style="opacity:.45">-+-&gt;</dt><dd>far-side limb (faded)</dd>
+    </dl>
+
+    <ul id="poses"></ul>
+  </main>
+
+  <script src="yoga.js"></script>
+  <script>
+    const list = document.getElementById("poses");
+    for (const pose of Yoga.POSES) {
+      const li = document.createElement("li");
+      li.innerHTML = `<pre role="img"></pre><h2></h2><div class="sanskrit"></div><p></p>`;
+      const pre = li.querySelector("pre");
+      // One wrapper so the flex layout (bottom-aligns the drawing) sees a single item.
+      pre.innerHTML = `<span class="art">${Yoga.toAscii(pose)}</span>`;
+      pre.setAttribute("aria-label", `${pose.name} stick figure`);
+      pre.style.setProperty("--cols", Math.max(...pre.textContent.split("\n").map((l) => l.length)));
+      li.querySelector("h2").textContent = pose.name;
+      li.querySelector(".sanskrit").textContent = pose.sanskrit;
+      li.querySelector("p").textContent = pose.desc;
+      list.append(li);
+    }
+  </script>
+</body>
+</html>
