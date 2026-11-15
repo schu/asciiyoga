@@ -27,10 +27,12 @@
     /* One typeface everywhere, including form-ish and code elements. */
     code, pre, button, input { font-family: var(--mono); }
 
-    /* Full-viewport layout: header, the selected pose, then the scrollable picker. */
+    /* Full-viewport layout: header, the selected pose, then the scrollable picker,
+       above the fixed player footer (its height is --footer-h). */
+    :root { --footer-h: 42px; }
     main {
-      height: 100vh; height: 100dvh;
-      display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 16px;
+      height: calc(100vh - var(--footer-h)); height: calc(100dvh - var(--footer-h));
+      display: grid; grid-template-rows: auto minmax(0, 1fr) auto; grid-template-columns: minmax(0, 1fr); gap: 16px;
       padding: 20px clamp(16px, 3vw, 48px);
     }
     h1 { margin: 0; font: 600 24px/1.2 var(--mono); letter-spacing: 0.02em; }
@@ -120,9 +122,35 @@
     .ascii .label.top { display: inline-block; margin-bottom: 1.5em; }
     .ascii .label.bottom { display: inline-block; margin-top: 0.6em; }
 
+    /* Fixed player footer: loop time | transport buttons | GitHub link. */
+    footer {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; min-height: var(--footer-h);
+      display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px;
+      padding: 5px clamp(16px, 3vw, 48px);
+      background: var(--card); border-top: 1px solid var(--line);
+    }
+    .transport { display: flex; align-items: center; gap: 6px; }
+    .transport .icon-btn { width: 30px; height: 26px; border-color: transparent; background: none; color: var(--muted); }
+    .transport .icon-btn:hover:not(:disabled) { color: var(--ink); border-color: var(--line); }
+    /* Play/pause stands out only a little: outlined, slightly wider, accent icon. */
+    .transport #playpause { width: 40px; color: var(--accent); border-color: var(--line); }
+    .transport #playpause:hover:not(:disabled) { border-color: var(--accent); }
+    footer .loop { white-space: nowrap; }
+    footer .repo { justify-self: end; font-size: 12px; color: var(--muted); text-decoration-color: var(--line); text-underline-offset: 3px; }
+    footer .repo:hover { color: var(--accent); text-decoration-color: currentColor; }
+
     /* Narrow screens: let the page scroll; info goes under the drawing. */
     @media (max-width: 760px) {
-      main { height: auto; grid-template-rows: auto auto auto; }
+      main { height: auto; grid-template-rows: auto auto auto; padding-bottom: calc(var(--footer-h) + 48px); }
+      /* Header controls and the picker bar wrap instead of widening the page. */
+      .controls { flex-wrap: wrap; width: 100%; }
+      .course { flex: 1; min-width: 0; }
+      .course select { flex: 1; min-width: 0; }
+      .picker-bar { flex-wrap: wrap; row-gap: 4px; }
+      .picker-bar .scroll-hint { display: none; }
+      /* Footer: transport on its own row, loop time and link below. */
+      footer { grid-template-columns: auto 1fr; row-gap: 2px; }
+      .transport { grid-column: 1 / -1; grid-row: 1; justify-self: center; }
       .stage { grid-template-columns: 1fr; }
       .view { height: 60vh; }
     }
@@ -138,18 +166,6 @@
         </label>
         <button type="button" id="theme" class="icon-btn"></button>
         <button type="button" id="sound" class="icon-btn" aria-pressed="false"></button>
-        <button type="button" id="playpause" class="icon-btn" aria-pressed="false" aria-label="Pause the loop" title="Pause (space)"></button>
-        <label class="loop">Time per pose
-          <select id="loop">
-            <option value="0">Off</option>
-            <option value="5" selected>5 s</option>
-            <option value="15">15 s</option>
-            <option value="30">30 s</option>
-            <option value="60">1 m</option>
-            <option value="120">2 m</option>
-            <option value="300">5 m</option>
-          </select>
-        </label>
       </div>
     </header>
 
@@ -180,13 +196,36 @@
         <span>&middot; showing <strong id="position"></strong></span>
         <span class="course-desc" id="course-desc"></span>
         <span class="spacer"></span>
-        <span>scroll sideways</span>
+        <span class="scroll-hint">scroll sideways</span>
         <button type="button" id="scroll-prev" aria-label="Scroll poses left">&lsaquo;</button>
         <button type="button" id="scroll-next" aria-label="Scroll poses right">&rsaquo;</button>
       </div>
       <div class="strip"><nav class="picker" aria-label="Poses"><ul id="picker"></ul></nav></div>
     </section>
+
   </main>
+
+  <footer>
+    <label class="loop">Time per pose
+      <select id="loop">
+        <option value="0">Off</option>
+        <option value="5" selected>5 s</option>
+        <option value="15">15 s</option>
+        <option value="30">30 s</option>
+        <option value="60">1 m</option>
+        <option value="120">2 m</option>
+        <option value="300">5 m</option>
+      </select>
+    </label>
+    <div class="transport" role="group" aria-label="Player">
+      <button type="button" id="first" class="icon-btn" aria-label="First pose" title="First pose (Home)"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="1.5" y="2" width="2" height="10" rx="0.5" fill="currentColor"/><path d="M12.5 2v10L4.5 7z" fill="currentColor"/></svg></button>
+      <button type="button" id="prev" class="icon-btn" aria-label="Previous pose" title="Previous pose (&larr;)"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7 2.5v9L1 7zM13 2.5v9L7 7z" fill="currentColor"/></svg></button>
+      <button type="button" id="playpause" class="icon-btn" aria-pressed="false" aria-label="Pause the loop" title="Pause (space)"></button>
+      <button type="button" id="next" class="icon-btn" aria-label="Next pose" title="Next pose (&rarr;)"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1 2.5v9L7 7zM7 2.5v9L13 7z" fill="currentColor"/></svg></button>
+      <button type="button" id="last" class="icon-btn" aria-label="Last pose" title="Last pose (End)"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 2v10L9.5 7z" fill="currentColor"/><rect x="10.5" y="2" width="2" height="10" rx="0.5" fill="currentColor"/></svg></button>
+    </div>
+    <a class="repo" href="https://github.com/schu/asciiyoga">github.com/schu/asciiyoga</a>
+  </footer>
 
   <script src="yoga.js"></script>
   <script>
@@ -375,9 +414,18 @@
     strip.addEventListener("scroll", updateEdges, { passive: true });
     addEventListener("resize", updateEdges);
 
-    // Arrow keys step through the poses.
+    // Footer transport: first, previous, next, last. Each restarts the countdown.
+    const go = (i) => { select(i); restartLoop(); };
+    document.getElementById("first").addEventListener("click", () => go(0));
+    document.getElementById("prev").addEventListener("click", () => go(current - 1));
+    document.getElementById("next").addEventListener("click", () => go(current + 1));
+    document.getElementById("last").addEventListener("click", () => go(sequence.length - 1));
+
+    // Arrow keys step through the poses; Home and End jump to the first and last.
     document.addEventListener("keydown", (e) => {
       if (e.target.closest("select")) return; // let the dropdown use its own arrow keys
+      if (e.key === "Home") { select(0, { focus: true }); restartLoop(); e.preventDefault(); }
+      if (e.key === "End") { select(sequence.length - 1, { focus: true }); restartLoop(); e.preventDefault(); }
       if (e.key === "ArrowRight" || e.key === "ArrowDown") { select(current + 1, { focus: true }); restartLoop(); e.preventDefault(); }
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") { select(current - 1, { focus: true }); restartLoop(); e.preventDefault(); }
     });
