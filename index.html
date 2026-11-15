@@ -11,10 +11,11 @@
     :root {
       --bg: #f4f5f2; --card: #fff; --ink: #1d2320; --muted: #6b726e;
       --accent: #2f7a5b; --gaze: #9b3fb5; --arm: #1f63c9; --leg: #c25a0c; --line: #dfe2dc;
+      --easy: #2f7a5b; --medium: #a8730a; --difficult: #b8323a;
       --mono: "JetBrains Mono", monospace;
     }
     @media (prefers-color-scheme: dark) {
-      :root { --bg: #131614; --card: #1b201d; --ink: #e6ebe8; --muted: #8e9893; --accent: #6cc59c; --gaze: #d08ae6; --arm: #6aa8ff; --leg: #ff9d4d; --line: #2b322e; }
+      :root { --bg: #131614; --card: #1b201d; --ink: #e6ebe8; --muted: #8e9893; --accent: #6cc59c; --gaze: #d08ae6; --arm: #6aa8ff; --leg: #ff9d4d; --line: #2b322e; --easy: #6cc59c; --medium: #e6b54a; --difficult: #ff7b82; }
     }
     * { box-sizing: border-box; }
     body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--mono); }
@@ -58,6 +59,11 @@
     .info { overflow-y: auto; min-height: 0; }
     .info h2 { margin: 0; font-size: 22px; line-height: 1.25; }
     .sanskrit { color: var(--accent); font-style: italic; }
+    /* Difficulty badge: three pips plus the word, colored by level. */
+    .level { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; letter-spacing: 0.04em; color: var(--lvl); }
+    .level::before { content: attr(data-pips); letter-spacing: 1px; }
+    .level.easy { --lvl: var(--easy); } .level.medium { --lvl: var(--medium); } .level.difficult { --lvl: var(--difficult); }
+    .info .level { margin-top: 6px; }
     .info p { margin: 8px 0 20px; color: var(--muted); font-size: 14px; }
     .legend { font-size: 13px; line-height: 1.7; color: var(--muted); border: 1px dashed var(--line); border-radius: 8px; padding: 10px 14px; margin: 0; width: fit-content; display: grid; grid-template-columns: max-content auto; gap: 0 20px; }
     .legend dt { color: var(--ink); font-weight: 600; text-align: right; white-space: pre; }
@@ -89,6 +95,7 @@
     }
     .picker .tile-name { margin-top: 10px; font-size: 15px; font-weight: 600; }
     .picker .tile-sanskrit { color: var(--accent); font-style: italic; font-size: 13px; }
+    .picker .tile-head { display: flex; justify-content: space-between; align-items: center; }
     .picker .tile-desc { margin-top: 4px; color: var(--muted); font-size: 13px; line-height: 1.45; }
     .picker button:hover { border-color: var(--muted); }
     .picker button[aria-current="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
@@ -140,6 +147,7 @@
       <div class="info">
         <h2 id="name"></h2>
         <div class="sanskrit" id="sanskrit"></div>
+        <div class="level" id="level"></div>
         <p id="desc"></p>
         <dl class="legend" aria-label="Legend">
           <dt>+</dt><dd>joint</dd>
@@ -179,6 +187,15 @@
       pre.setAttribute("aria-label", `${pose.name} figure`);
     }
 
+    // Fill a difficulty badge: "●○○ easy", "●●○ medium", "●●● difficult".
+    function setLevel(el, level) {
+      const n = { easy: 1, medium: 2, difficult: 3 }[level];
+      el.className = `level ${level}`;
+      el.dataset.pips = "●".repeat(n) + "○".repeat(3 - n);
+      el.textContent = level;
+      el.title = `Difficulty: ${level}`;
+    }
+
     const view = document.getElementById("view");
     const picker = document.getElementById("picker");
     const buttons = [];
@@ -190,6 +207,7 @@
       draw(view, pose);
       document.getElementById("name").textContent = pose.name;
       document.getElementById("sanskrit").textContent = pose.sanskrit;
+      setLevel(document.getElementById("level"), pose.level);
       document.getElementById("desc").textContent = pose.desc;
       buttons.forEach((b, j) => b.setAttribute("aria-current", j === current));
       document.getElementById("position").textContent = `${current + 1} of ${Yoga.POSES.length}`;
@@ -201,12 +219,13 @@
     Yoga.POSES.forEach((pose, i) => {
       const li = document.createElement("li");
       const btn = document.createElement("button");
-      btn.innerHTML = `<span class="tile-num">${String(i + 1).padStart(2, "0")} / ${Yoga.POSES.length}</span><div class="thumb"><pre class="ascii" aria-hidden="true"></pre></div>
+      btn.innerHTML = `<span class="tile-head"><span class="tile-num">${String(i + 1).padStart(2, "0")} / ${Yoga.POSES.length}</span><span class="level"></span></span><div class="thumb"><pre class="ascii" aria-hidden="true"></pre></div>
         <span class="tile-name"></span><span class="tile-sanskrit"></span><span class="tile-desc"></span>`;
       draw(btn.querySelector("pre"), pose, { labels: false });
       btn.querySelector(".tile-name").textContent = pose.name;
       btn.querySelector(".tile-sanskrit").textContent = pose.sanskrit;
       btn.querySelector(".tile-desc").textContent = pose.desc;
+      setLevel(btn.querySelector(".level"), pose.level);
       btn.addEventListener("click", () => { select(i); restartLoop(); });
       buttons.push(btn);
       li.append(btn);
