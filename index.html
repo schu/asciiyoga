@@ -137,6 +137,7 @@
           <select id="course"><option value="">All poses</option></select>
         </label>
         <button type="button" id="theme" class="icon-btn"></button>
+        <button type="button" id="sound" class="icon-btn" aria-pressed="false"></button>
         <button type="button" id="playpause" class="icon-btn" aria-pressed="false" aria-label="Pause the loop" title="Pause (space)"></button>
         <label class="loop">Time per pose
           <select id="loop">
@@ -211,6 +212,66 @@
     });
     applyTheme(document.documentElement.dataset.theme || "system");
 
+    // Optional chime when the loop moves to the next pose, made with Web Audio (no sound files).
+    // Off by default and not remembered: browsers only allow audio after a click.
+    const ICON_SOUND_OFF = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 5h2.5l3.5-3v10l-3.5-3h-2.5z" fill="currentColor"/><path d="M9.5 5l3.5 4M13 5l-3.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+    const ICON_SOUND_ON = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M1.5 5h2.5l3.5-3v10l-3.5-3h-2.5z" fill="currentColor"/><path d="M9.5 4.8a3 3 0 0 1 0 4.4M11.3 3a5.5 5.5 0 0 1 0 8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+    const soundBtn = document.getElementById("sound");
+    let soundOn = false;
+    let audio = null;
+
+    // A soft singing-bowl chime, like the bowls used in yoga classes: a few
+    // inharmonic bowl modes, each split into two close tones that "beat" (the
+    // slow wah-wah shimmer of a bowl), a soft-mallet attack and a fade that
+    // ends within 2 seconds.
+    function bing() {
+      if (!soundOn || !audio) return;
+      const t = audio.currentTime;
+      const f0 = 293.66; // D4
+      const out = audio.createGain();
+      out.gain.setValueAtTime(0.02, t); // overall volume: a gentle background cue
+      out.gain.setValueAtTime(0.02, t + 1.8);
+      out.gain.linearRampToValueAtTime(0, t + 2); // silent at 2 s, no click
+      const soft = audio.createBiquadFilter();
+      soft.type = "lowpass";
+      soft.frequency.value = 2000;
+      soft.connect(out).connect(audio.destination);
+      // [frequency ratio, loudness, fade time constant in s, beat rate in Hz]
+      const modes = [[1, 1, 0.55, 1.5], [2.76, 0.22, 0.35, 2.5], [5.4, 0.05, 0.2, 3.5]];
+      for (const [ratio, amp, fade, beat] of modes) {
+        // Unequal pair, so the shimmer dips but never cancels to silence.
+        for (const [offset, share] of [[-beat / 2, 0.65], [beat / 2, 0.35]]) {
+          const osc = audio.createOscillator();
+          const gain = audio.createGain();
+          osc.frequency.value = f0 * ratio + offset;
+          gain.gain.setValueAtTime(0, t);
+          gain.gain.linearRampToValueAtTime(amp * share, t + 0.08); // soft mallet
+          gain.gain.setTargetAtTime(0, t + 0.08, fade);
+          osc.connect(gain).connect(soft);
+          osc.start(t);
+          osc.stop(t + 2);
+        }
+      }
+    }
+
+    function updateSoundButton() {
+      soundBtn.innerHTML = soundOn ? ICON_SOUND_ON : ICON_SOUND_OFF;
+      soundBtn.setAttribute("aria-pressed", String(soundOn));
+      const label = soundOn ? "Sound on: chime when the loop moves to the next pose. Turn off" : "Sound off. Turn on a chime when the loop moves to the next pose";
+      soundBtn.setAttribute("aria-label", label);
+      soundBtn.title = label;
+    }
+    soundBtn.addEventListener("click", () => {
+      soundOn = !soundOn;
+      if (soundOn) {
+        audio ||= new AudioContext(); // created inside the click, so the browser allows it
+        audio.resume();
+        bing(); // a preview, so you hear what you turned on
+      }
+      updateSoundButton();
+    });
+    updateSoundButton();
+
     // Render an ASCII drawing into a <pre> and record its size for the CSS font fitting.
     function draw(pre, pose, opts) {
       pre.innerHTML = Yoga.toAscii(pose, opts);
@@ -241,8 +302,9 @@
 
     for (const plan of Yoga.PLANS) courseSel.add(new Option(`${PIPS[plan.level]} ${plan.name} (${plan.poses.length}, ${plan.level})`, plan.id));
 
-    function select(i, { focus = false } = {}) {
+    function select(i, { focus = false, sound = false } = {}) {
       current = (i + sequence.length) % sequence.length;
+      if (sound) bing();
       const pose = sequence[current];
       draw(view, pose);
       document.getElementById("name").textContent = pose.name;
@@ -348,7 +410,7 @@
       clearTimeout(timer);
       deadline = Date.now() + ms;
       timer = setTimeout(() => {
-        select(current + 1);
+        select(current + 1, { sound: true }); // the chime marks only automatic pose changes
         startProgress();
         schedule(Number(loopSel.value) * 1000);
       }, ms);
