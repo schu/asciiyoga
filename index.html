@@ -28,6 +28,20 @@
       padding: 20px clamp(16px, 3vw, 48px);
     }
     h1 { margin: 0; font: 600 24px/1.2 var(--mono); letter-spacing: 0.02em; }
+    header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+    .loop { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+    .controls { display: flex; align-items: center; gap: 12px; }
+    .playpause { display: grid; place-items: center; width: 32px; height: 30px; padding: 0; cursor: pointer; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
+    .playpause:hover:not(:disabled) { border-color: var(--muted); }
+    .playpause:disabled { opacity: 0.4; cursor: default; }
+    .loop select { font: inherit; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px; }
+    /* Countdown to the next pose while looping. */
+    .view { position: relative; }
+    .progress { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--accent); transform-origin: left; transform: scaleX(0); }
+    .progress.run { animation: progress var(--dur) linear forwards; }
+    /* Must come after .run and be more specific: the `animation` shorthand resets play-state. */
+    .progress.run.paused { animation-play-state: paused; }
+    @keyframes progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
     /* --- Selected pose --- */
     .stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 340px); gap: 24px; min-height: 0; }
@@ -51,7 +65,20 @@
 
     /* --- Picker: smaller renderings in a vertically scrolling panel --- */
     /* One horizontal strip of tiles; scrolls sideways (the mouse wheel too, see script). */
-    .picker { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x proximity; border-top: 1px solid var(--line); padding: 12px 0 8px; }
+    .picker-wrap { border-top: 1px solid var(--line); padding-top: 10px; min-width: 0; }
+    .picker-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; font-size: 13px; color: var(--muted); }
+    .picker-bar strong { color: var(--ink); }
+    .picker-bar .spacer { flex: 1; }
+    .picker-bar button { font: inherit; font-size: 16px; line-height: 1; width: 32px; height: 28px; cursor: pointer; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 6px; }
+    .picker-bar button:disabled { opacity: 0.35; cursor: default; }
+    .strip { position: relative; }
+    /* Faded edges hint that more tiles are hidden on that side. */
+    .strip::before, .strip::after { content: ""; position: absolute; top: 0; bottom: 14px; width: 48px; pointer-events: none; opacity: 0; transition: opacity 0.2s; z-index: 1; }
+    .strip::before { left: 0; background: linear-gradient(to right, var(--bg), transparent); }
+    .strip::after { right: 0; background: linear-gradient(to left, var(--bg), transparent); }
+    .strip.more-left::before, .strip.more-right::after { opacity: 1; }
+    .picker { overflow-x: auto; overflow-y: hidden; overscroll-behavior-x: contain; scroll-snap-type: x proximity; padding-bottom: 8px; scrollbar-width: thin; scrollbar-color: var(--muted) transparent; }
+    .picker .tile-num { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; }
     .picker ul { list-style: none; margin: 0; padding: 0; display: flex; gap: 12px; }
     .picker li { display: flex; flex: 0 0 260px; scroll-snap-align: start; }
     /* Tiles like the original cards: drawing, name, Sanskrit name and description. */
@@ -90,10 +117,26 @@
 </head>
 <body>
   <main>
-    <header><h1>ASCIIYOGA</h1></header>
+    <header>
+      <h1>ASCIIYOGA</h1>
+      <div class="controls">
+        <button type="button" id="playpause" class="playpause" aria-pressed="false" aria-label="Pause the loop" title="Pause (space)"></button>
+        <label class="loop">Time per pose
+          <select id="loop">
+            <option value="0">Off</option>
+            <option value="5" selected>5 s</option>
+            <option value="15">15 s</option>
+            <option value="30">30 s</option>
+            <option value="60">1 m</option>
+            <option value="120">2 m</option>
+            <option value="300">5 m</option>
+          </select>
+        </label>
+      </div>
+    </header>
 
     <section class="stage" aria-live="polite">
-      <div class="view"><pre class="ascii" id="view" role="img"></pre></div>
+      <div class="view"><pre class="ascii" id="view" role="img"></pre><div class="progress" id="progress"></div></div>
       <div class="info">
         <h2 id="name"></h2>
         <div class="sanskrit" id="sanskrit"></div>
@@ -112,7 +155,17 @@
       </div>
     </section>
 
-    <nav class="picker" aria-label="Poses"><ul id="picker"></ul></nav>
+    <section class="picker-wrap">
+      <div class="picker-bar">
+        <span><strong id="count"></strong> poses</span>
+        <span>&middot; showing <strong id="position"></strong></span>
+        <span class="spacer"></span>
+        <span>scroll sideways</span>
+        <button type="button" id="scroll-prev" aria-label="Scroll poses left">&lsaquo;</button>
+        <button type="button" id="scroll-next" aria-label="Scroll poses right">&rsaquo;</button>
+      </div>
+      <div class="strip"><nav class="picker" aria-label="Poses"><ul id="picker"></ul></nav></div>
+    </section>
   </main>
 
   <script src="yoga.js"></script>
@@ -139,6 +192,7 @@
       document.getElementById("sanskrit").textContent = pose.sanskrit;
       document.getElementById("desc").textContent = pose.desc;
       buttons.forEach((b, j) => b.setAttribute("aria-current", j === current));
+      document.getElementById("position").textContent = `${current + 1} of ${Yoga.POSES.length}`;
       buttons[current].scrollIntoView({ block: "nearest", inline: "nearest" });
       if (focus) buttons[current].focus();
       history.replaceState(null, "", `#${pose.id}`);
@@ -147,13 +201,13 @@
     Yoga.POSES.forEach((pose, i) => {
       const li = document.createElement("li");
       const btn = document.createElement("button");
-      btn.innerHTML = `<div class="thumb"><pre class="ascii" aria-hidden="true"></pre></div>
+      btn.innerHTML = `<span class="tile-num">${String(i + 1).padStart(2, "0")} / ${Yoga.POSES.length}</span><div class="thumb"><pre class="ascii" aria-hidden="true"></pre></div>
         <span class="tile-name"></span><span class="tile-sanskrit"></span><span class="tile-desc"></span>`;
       draw(btn.querySelector("pre"), pose, { labels: false });
       btn.querySelector(".tile-name").textContent = pose.name;
       btn.querySelector(".tile-sanskrit").textContent = pose.sanskrit;
       btn.querySelector(".tile-desc").textContent = pose.desc;
-      btn.addEventListener("click", () => select(i));
+      btn.addEventListener("click", () => { select(i); restartLoop(); });
       buttons.push(btn);
       li.append(btn);
       picker.append(li);
@@ -167,14 +221,119 @@
       e.preventDefault();
     }, { passive: false });
 
+    // Pose count, scroll buttons, and faded edges where tiles are hidden.
+    document.getElementById("count").textContent = Yoga.POSES.length;
+    const prevBtn = document.getElementById("scroll-prev");
+    const nextBtn = document.getElementById("scroll-next");
+    prevBtn.addEventListener("click", () => strip.scrollBy({ left: -strip.clientWidth * 0.8, behavior: "smooth" }));
+    nextBtn.addEventListener("click", () => strip.scrollBy({ left: strip.clientWidth * 0.8, behavior: "smooth" }));
+    function updateEdges() {
+      const left = strip.scrollLeft > 2;
+      const right = strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 2;
+      strip.parentElement.classList.toggle("more-left", left);
+      strip.parentElement.classList.toggle("more-right", right);
+      prevBtn.disabled = !left;
+      nextBtn.disabled = !right;
+    }
+    strip.addEventListener("scroll", updateEdges, { passive: true });
+    addEventListener("resize", updateEdges);
+    updateEdges();
+
     // Arrow keys step through the poses.
     document.addEventListener("keydown", (e) => {
-      if (e.key === "ArrowRight" || e.key === "ArrowDown") { select(current + 1, { focus: true }); e.preventDefault(); }
-      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { select(current - 1, { focus: true }); e.preventDefault(); }
+      if (e.target.closest("select")) return; // let the dropdown use its own arrow keys
+      if (e.key === "ArrowRight" || e.key === "ArrowDown") { select(current + 1, { focus: true }); restartLoop(); e.preventDefault(); }
+      if (e.key === "ArrowLeft" || e.key === "ArrowUp") { select(current - 1, { focus: true }); restartLoop(); e.preventDefault(); }
     });
 
     const fromHash = Yoga.POSES.findIndex((p) => p.id === location.hash.slice(1));
     select(fromHash >= 0 ? fromHash : 0);
+
+    // Loop through the poses. The chosen time is remembered per browser.
+    const loopSel = document.getElementById("loop");
+    const progress = document.getElementById("progress");
+    const playBtn = document.getElementById("playpause");
+    let timer = null;
+    let paused = false;
+    let deadline = 0;   // when the next pose is due (ms timestamp)
+    let remaining = 0;  // ms left on the countdown while paused
+    try { const saved = localStorage.getItem("asciiyoga-loop"); if (saved !== null) loopSel.value = saved; } catch {}
+    if (loopSel.selectedIndex < 0) loopSel.value = "5";
+
+    function startProgress() {
+      progress.classList.remove("run", "paused");
+      void progress.offsetWidth; // restart the CSS animation
+      progress.classList.add("run");
+    }
+
+    function schedule(ms) {
+      clearTimeout(timer);
+      deadline = Date.now() + ms;
+      timer = setTimeout(() => {
+        select(current + 1);
+        startProgress();
+        schedule(Number(loopSel.value) * 1000);
+      }, ms);
+    }
+
+    const ICON_PLAY = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M3 1.5v11l9-5.5z" fill="currentColor"/></svg>';
+    const ICON_PAUSE = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="2.5" y="1.5" width="3" height="11" rx="0.5" fill="currentColor"/><rect x="8.5" y="1.5" width="3" height="11" rx="0.5" fill="currentColor"/></svg>';
+
+    function updatePlayButton() {
+      const off = !Number(loopSel.value);
+      playBtn.disabled = off;
+      const showPlay = paused || off;
+      playBtn.innerHTML = showPlay ? ICON_PLAY : ICON_PAUSE;
+      playBtn.setAttribute("aria-pressed", String(paused));
+      playBtn.setAttribute("aria-label", showPlay ? "Play: loop through the poses" : "Pause the loop");
+      playBtn.title = showPlay ? "Play (space)" : "Pause (space)";
+    }
+
+    // Start a full countdown for the current pose (after a change of pose or time).
+    function restartLoop() {
+      clearTimeout(timer);
+      timer = null;
+      const seconds = Number(loopSel.value);
+      progress.classList.remove("run", "paused");
+      updatePlayButton();
+      if (!seconds) return;
+      progress.style.setProperty("--dur", `${seconds}s`);
+      startProgress();
+      if (paused) {
+        progress.classList.add("paused"); // stays at the start until play
+        remaining = seconds * 1000;
+      } else {
+        schedule(seconds * 1000);
+      }
+    }
+
+    function togglePause() {
+      if (!Number(loopSel.value)) return;
+      paused = !paused;
+      if (paused) {
+        clearTimeout(timer);
+        remaining = Math.max(0, deadline - Date.now());
+        progress.classList.add("paused");
+      } else {
+        progress.classList.remove("paused");
+        schedule(remaining);
+      }
+      updatePlayButton();
+    }
+
+    playBtn.addEventListener("click", togglePause);
+    // Space toggles play/pause, unless a button or the dropdown has focus.
+    document.addEventListener("keydown", (e) => {
+      if (e.key !== " " || e.target.closest("button, select")) return;
+      togglePause();
+      e.preventDefault();
+    });
+
+    loopSel.addEventListener("change", () => {
+      try { localStorage.setItem("asciiyoga-loop", loopSel.value); } catch {}
+      restartLoop();
+    });
+    restartLoop();
   </script>
 </body>
 </html>
